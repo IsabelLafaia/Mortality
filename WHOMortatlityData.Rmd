@@ -126,11 +126,15 @@ rm(docx1, docx2, docx3, docx4, docx5, docx6, docx7, docx8, docx9, docx10, docx11
 
 ```{r keepNeoplasm, echo=TRUE}
 library(dplyr)
-# melanoma, lymphoma, Leukaemia
+# melanoma, lymphoma, Leukaemia and Neoplasm
 neoplasmCodes <- docx16 %>%
-        rename(Code = code) %>%
         bind_rows(docx17) %>%
-        filter(grepl("neoplasm", str_to_lower(Cause)))
+        filter(
+        grepl("neoplasm", str_to_lower(Cause)) |
+        grepl("melanoma", str_to_lower(Cause)) |
+        grepl("lymphoma", str_to_lower(Cause)) |
+        grepl("leukaemia", str_to_lower(Cause))
+        )
 
 keepNeoplasm <- morticd10_part1 %>%
         filter(Cause %in% neoplasmCodes$Code)
@@ -206,7 +210,7 @@ getWHOdata <- function(country, causes, year, sex){
 
 ```
 
-
+# Comparing results
 ```{r compareResults}
 
 
@@ -221,7 +225,7 @@ right_join(m10codes, by = "Cause") %>%
 rename(Code = Cause) %>%
 left_join(docx16, by = "Code")
 
-compare(m10codes, neoCode)
+
 
 ```
 
