@@ -1,0 +1,218 @@
+---
+title: "WHO Moratlity Data"
+author: "Saghir Bashir & Joana Pereira"
+date: "9 October 2016"
+output: html_document
+---
+
+In this document, the steps to *tidy* the [World Health Organisation's (WHO)](www.who.int) mortality data for use in R are documented. The following steps are presented.
+
+* Data source: <http://www.who.int/healthinfo/mortality_data/en/>
+  + It is assumed that data has been downloaded
+* Reading in the WHO mortality data
+* Reading the International Classificaion of Diseases data
+* Keep the **neoplasm** data for ICD10 part 1
+  + Tranform the data into long format for the number of deaths
+* Transform the population data in long format
+* Merge the long population data to the long neoplasm data
+  + Care has to be taken with respect to the format of the age groups. 
+  + Combine the youngest age groups into a new 0-4 years. 
+  + Consider adding an **all** age group category (**not urgent**)
+* Calculate the mortality rate per 100,000 population in a new variable
+  + rate = (100000*deaths)/pop
+* Write a function that will extract data based on country, cause of death, year and sex
+  + If any of these are left blank then all the data is extracted
+  + A data frame containing the requested data should be returned.
+* Next steps will defined later
+  * Sumamry graphs
+  * Summary tables
+  
+**Note** There is no not need to use *R Shiny* for this exercise. Only program in this R markdown document.
+
+## Data source
+
+The data was downloaded from <http://www.who.int/healthinfo/mortality_data/en/>. It is assumed that data has been downloaded and resides in a directory "OrigData"
+
+## Reading in the WHO mortality data
+
+The following code will automatically read in the WHO mortality data.
+```{r ReadWHOdata, echo=FALSE}
+# Load libraries
+library(stringr)
+library(readr)
+library(tibble)
+
+# Set the directory where you have saved the data.
+# This is not a great solution but it works and is easier for the moment, Later it should change.
+setwd("WHOdata/")
+
+# Select the data files (exclude .zip, .doc, .xls)
+csvWHO <- list.files(path = ".", full.names = FALSE) %>%
+str_subset("^((?!zip|doc|xls).)*$")
+
+# Use the lapply to read all the data into one list
+dataList <- lapply(csvWHO, read_csv, guess_max = min(300000, Inf))
+
+# Extract the data into data.frames (tbl) but start by giving them the dataest you want.
+# I convert them to lower case as they are not consistent in the original.
+names(dataList) <- str_to_lower(csvWHO)
+list2env(dataList, envir = .GlobalEnv)
+
+# dataList is not longer needed so we will remove it.
+rm(dataList)
+# Removing the ICD 7, 8, 9 and 10 part 2 data as we will not use them for the moment.
+# Also we do not want to have problems with the memory
+rm(morticd7, morticd8, morticd9, morticd10_part2)
+
+# Some garbage collection to free up the memory (although this is something that is
+# automatically by kernel). In future we may not need this step.
+gc()
+```
+
+## Reading the International Classificaion of Diseases data
+
+**Joana:** Please read in the data form the word document here.
+
+```{r readICDdata, echo=TRUE}
+library(xml2)
+
+get_tbls <- function(word_doc) {
+  
+  tmpd <- tempdir()
+  tmpf <- tempfile(tmpdir=tmpd, fileext=".zip")
+  
+  file.copy(word_doc, tmpf)
+  unzip(tmpf, exdir=sprintf("%s/docdata", tmpd))
+  
+  doc <- read_xml(sprintf("%s/docdata/word/document.xml", tmpd))
+  
+  unlink(tmpf)
+  unlink(sprintf("%s/docdata", tmpd), recursive=TRUE)
+
+  ns <- xml_ns(doc)
+  
+  tbls <- xml_find_all(doc, ".//w:tbl", ns=ns)
+  
+  lapply(tbls, function(tbl) {
+    
+    cells <- xml_find_all(tbl, "./w:tr/w:tc", ns=ns)
+    rows <- xml_find_all(tbl, "./w:tr", ns=ns)
+    dat <- data.frame(matrix(xml_text(cells), 
+                             ncol=(length(cells)/length(rows)), 
+                             byrow=TRUE), 
+                      stringsAsFactors=FALSE)
+    colnames(dat) <- dat[1,]
+    dat <- dat[-1,]
+    rownames(dat) <- NULL
+    dat
+    
+  })
+  
+}
+
+
+doc <- get_tbls("Documentation_15sep2016.zip")
+names(doc) <- paste0("docx", 1:length(doc))
+list2env(doc, envir = .GlobalEnv)
+rm(docx1, docx2, docx3, docx4, docx5, docx6, docx7, docx8, docx9, docx10, docx11, docx12, docx13, docx14, docx15)
+```
+
+
+### Keep the **neoplasm** data for ICD10 parts 1 
+
+**To do:** Tranform the data into long format for the number of deaths
+
+**Hints:** Use `gather()`, `filter()`, `str_to_upper()` (or an case insensitive regex to select neoplasm data). 
+
+```{r keepNeoplasm, echo=TRUE}
+library(dplyr)
+
+neoplasmCodes <- docx16 %>%
+        rename(Code = code) %>%
+        bind_rows(docx17) %>%
+        filter(grepl("neoplasm", str_to_lower(Cause)))
+
+keepNeoplasm <- morticd10_part1 %>%
+        filter(Cause %in% neoplasmCodes$Code)
+
+```
+
+
+
+### Transform the population data in long format
+
+```{r popLong, echo=TRUE}
+
+popLong <- pop %>%
+        rename(
+        `all ages` = Pop1,
+        `0 year` = Pop2,
+        `1 year` = Pop3,
+        `2 years` = Pop4,
+        `3 years` = Pop5,
+        `4 years` = Pop6,
+        `Between 5-9 years` = Pop7,
+        `Between 10-14 years` = Pop8,
+        `Between 15-19 years` = Pop9,
+        `Between 20-24 years` = Pop10,
+        `Between 25-29 years` = Pop11,
+        `Between 30-34 years` = Pop12,
+        `Between 35-39 years` = Pop13,
+        `Between 40-44 years` = Pop14,
+        `Between 45-49 years` = Pop15,
+        `Between 50-54 years` = Pop16,
+        `Between 55-59 years` = Pop17,
+        `Between 60-64 years` = Pop18,
+        `Between 65-69 years` = Pop19,
+        `Between 70-74 years` = Pop20,
+        `Between 75-79 years` = Pop21,
+        `Between 80-84 years` = Pop22,
+        `Between 85-89 years` = Pop23,
+        `Between 90-94 years` = Pop24,
+        `=>95 years` = Pop25,
+        `unspecified` = Pop26,
+        `Live births` = Lb
+        ) %>%
+        gather("Age", "Population", 7:33)
+```
+
+
+### Merging the population data to the neoplasm mortality data
+
+  * Care has to be taken with respect to the format of the age groups. 
+  * Combine the youngest age groups into a new 0-4 years. 
+  * Consider adding an **all** age group category (**not urgent**)
+  * Calculate the mortality rate per 100,000 population in a new variable
+    + rate = (100000*deaths)/pop
+
+```{r mortalityPop, echo=TRUE}
+
+```
+
+
+
+## Write a function that will extract data based on country, cause of death, year and sex
+  * If any of these are left blank then all the data is extracted
+  * A data frame containing the requested data should be returned.
+
+```{r}
+getWHOdata <- function(country, causes, year, sex){
+  # country - Vector of countries to be filtered
+  #   cause - Vector of causes of death to be filtered
+  #    year - Vector of years to be filtered
+  #     sex - Vector of gender to be filtered
+
+}
+
+
+```
+
+
+### Next steps
+
+Once the above steps have been completed, the next steps will be defined. They will include:
+  * Sumamry graphs
+  * Summary tables
+  
+
+

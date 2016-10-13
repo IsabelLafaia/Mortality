@@ -11,6 +11,5 @@ shinyUI(fluidPage(
                 tabPanel('Mortality9',  DT::dataTableOutput('morticd9')),
                 tabPanel('Notes',  DT::dataTableOutput('notes')),
                 tabPanel('Population',  DT::dataTableOutput('pop'))
-        )
-        
+                )
 ))

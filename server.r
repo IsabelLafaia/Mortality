@@ -10,3 +10,4 @@ server <- shinyServer(function(input, output, session) {
         output$pop <- DT::renderDataTable(pop)
         
 })
+
