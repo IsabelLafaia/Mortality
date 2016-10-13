@@ -126,7 +126,7 @@ rm(docx1, docx2, docx3, docx4, docx5, docx6, docx7, docx8, docx9, docx10, docx11
 
 ```{r keepNeoplasm, echo=TRUE}
 library(dplyr)
-
+# melanoma, lymphoma, Leukaemia
 neoplasmCodes <- docx16 %>%
         rename(Code = code) %>%
         bind_rows(docx17) %>%
@@ -134,7 +134,6 @@ neoplasmCodes <- docx16 %>%
 
 keepNeoplasm <- morticd10_part1 %>%
         filter(Cause %in% neoplasmCodes$Code)
-
 ```
 
 
@@ -206,6 +205,26 @@ getWHOdata <- function(country, causes, year, sex){
 
 
 ```
+
+
+```{r compareResults}
+
+
+m10codes <- morticd10_part1 %>%
+group_by(Cause) %>%
+summarise(n10 = n())
+
+neoCode <- keepNeoplasm %>%
+group_by(Cause) %>%
+summarise(nneo = n()) %>%
+right_join(m10codes, by = "Cause") %>%
+rename(Code = Cause) %>%
+left_join(docx16, by = "Code")
+
+compare(m10codes, neoCode)
+
+```
+
 
 
 ### Next steps
