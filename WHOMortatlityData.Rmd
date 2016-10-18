@@ -126,6 +126,7 @@ rm(docx1, docx2, docx3, docx4, docx5, docx6, docx7, docx8, docx9, docx10, docx11
 
 ```{r keepNeoplasm, echo=TRUE}
 library(dplyr)
+
 # melanoma, lymphoma, Leukaemia and Neoplasm
 neoplasmCodes <- docx16 %>%
         bind_rows(docx17) %>%
@@ -136,8 +137,10 @@ neoplasmCodes <- docx16 %>%
         grepl("leukaemia", str_to_lower(Cause))
         )
 
+#Dataset with all the mortality data from melanoma, lymphoma, Leukaemia and Neoplasms
 keepNeoplasm <- morticd10_part1 %>%
         filter(Cause %in% neoplasmCodes$Code)
+
 ```
 
 
@@ -146,6 +149,7 @@ keepNeoplasm <- morticd10_part1 %>%
 
 ```{r popLong, echo=TRUE}
 
+#1st atempt to popLong
 popLong <- pop %>%
         rename(
         `all ages` = Pop1,
@@ -173,10 +177,15 @@ popLong <- pop %>%
         `Between 85-89 years` = Pop23,
         `Between 90-94 years` = Pop24,
         `=>95 years` = Pop25,
-        `unspecified` = Pop26,
-        `Live births` = Lb
-        ) %>%
-        gather("Age", "Population", 7:33)
+        `unspecified` = Pop26
+        ) %>% 
+        gather("Population", "Deaths", 7:33)
+
+
+
+popLong <- pop %>%
+        gather("GroupAge", "Population", 7:33) %>%
+        separate(Pop1, c("Pop","1"))
 ```
 
 
@@ -189,6 +198,39 @@ popLong <- pop %>%
     + rate = (100000*deaths)/pop
 
 ```{r mortalityPop, echo=TRUE}
+
+mortalityPop <- keepNeoplasm %>%
+        rename(
+        `all ages` = Deaths1,
+        `0 year` = Deaths2,
+        `1 year` = Deaths3,
+        `2 years` = Deaths4,
+        `3 years` = Deaths5,
+        `4 years` = Deaths6,
+        `Between 5-9 years` = Deaths7,
+        `Between 10-14 years` = Deaths8,
+        `Between 15-19 years` = Deaths9,
+        `Between 20-24 years` = Deaths10,
+        `Between 25-29 years` = Deaths11,
+        `Between 30-34 years` = Deaths12,
+        `Between 35-39 years` = Deaths13,
+        `Between 40-44 years` = Deaths14,
+        `Between 45-49 years` = Deaths15,
+        `Between 50-54 years` = Deaths16,
+        `Between 55-59 years` = Deaths17,
+        `Between 60-64 years` = Deaths18,
+        `Between 65-69 years` = Deaths19,
+        `Between 70-74 years` = Deaths20,
+        `Between 75-79 years` = Deaths21,
+        `Between 80-84 years` = Deaths22,
+        `Between 85-89 years` = Deaths23,
+        `Between 90-94 years` = Deaths24,
+        `=>95 years` = Deaths25,
+        `unspecified` = Deaths26
+        ) %>% 
+        gather("Ages", "Deaths", 10:39) %>%
+        left_join(popLong, by = c("Country", "Year", "Sex", "Frmat"))
+
 
 ```
 
