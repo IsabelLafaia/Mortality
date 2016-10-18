@@ -149,43 +149,12 @@ keepNeoplasm <- morticd10_part1 %>%
 
 ```{r popLong, echo=TRUE}
 
-#1st atempt to popLong
-popLong <- pop %>%
-        rename(
-        `all ages` = Pop1,
-        `0 year` = Pop2,
-        `1 year` = Pop3,
-        `2 years` = Pop4,
-        `3 years` = Pop5,
-        `4 years` = Pop6,
-        `Between 5-9 years` = Pop7,
-        `Between 10-14 years` = Pop8,
-        `Between 15-19 years` = Pop9,
-        `Between 20-24 years` = Pop10,
-        `Between 25-29 years` = Pop11,
-        `Between 30-34 years` = Pop12,
-        `Between 35-39 years` = Pop13,
-        `Between 40-44 years` = Pop14,
-        `Between 45-49 years` = Pop15,
-        `Between 50-54 years` = Pop16,
-        `Between 55-59 years` = Pop17,
-        `Between 60-64 years` = Pop18,
-        `Between 65-69 years` = Pop19,
-        `Between 70-74 years` = Pop20,
-        `Between 75-79 years` = Pop21,
-        `Between 80-84 years` = Pop22,
-        `Between 85-89 years` = Pop23,
-        `Between 90-94 years` = Pop24,
-        `=>95 years` = Pop25,
-        `unspecified` = Pop26
-        ) %>% 
-        gather("Population", "Deaths", 7:33)
+popLong <- pop   %>%
+        select(-Admin1, -SubDiv, -Lb) %>%
+        gather("Age", "Population", 5:30) %>%
+        mutate(GroupAge  = as.numeric(str_replace(Age,"Pop", ""))) %>%
+        select(-Age)
 
-
-
-popLong <- pop %>%
-        gather("GroupAge", "Population", 7:33) %>%
-        separate(Pop1, c("Pop","1"))
 ```
 
 
@@ -200,36 +169,17 @@ popLong <- pop %>%
 ```{r mortalityPop, echo=TRUE}
 
 mortalityPop <- keepNeoplasm %>%
-        rename(
-        `all ages` = Deaths1,
-        `0 year` = Deaths2,
-        `1 year` = Deaths3,
-        `2 years` = Deaths4,
-        `3 years` = Deaths5,
-        `4 years` = Deaths6,
-        `Between 5-9 years` = Deaths7,
-        `Between 10-14 years` = Deaths8,
-        `Between 15-19 years` = Deaths9,
-        `Between 20-24 years` = Deaths10,
-        `Between 25-29 years` = Deaths11,
-        `Between 30-34 years` = Deaths12,
-        `Between 35-39 years` = Deaths13,
-        `Between 40-44 years` = Deaths14,
-        `Between 45-49 years` = Deaths15,
-        `Between 50-54 years` = Deaths16,
-        `Between 55-59 years` = Deaths17,
-        `Between 60-64 years` = Deaths18,
-        `Between 65-69 years` = Deaths19,
-        `Between 70-74 years` = Deaths20,
-        `Between 75-79 years` = Deaths21,
-        `Between 80-84 years` = Deaths22,
-        `Between 85-89 years` = Deaths23,
-        `Between 90-94 years` = Deaths24,
-        `=>95 years` = Deaths25,
-        `unspecified` = Deaths26
-        ) %>% 
-        gather("Ages", "Deaths", 10:39) %>%
-        left_join(popLong, by = c("Country", "Year", "Sex", "Frmat"))
+        select(-Admin1,
+        -SubDiv,
+        -IM_Frmat,
+        -IM_Deaths1,
+        -IM_Deaths2,
+        -IM_Deaths3,
+        -IM_Deaths4) %>%
+        gather("Age", "Deaths", 7:32) %>%
+        mutate(GroupAge  = as.numeric(str_replace(Age, "Deaths", "")))  %>%
+        select(-Age) %>%
+        left_join(popLong, by = c("Country", "Year", "Sex", "Frmat", "GroupAge"))
 
 
 ```
