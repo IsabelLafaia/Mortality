@@ -115,6 +115,7 @@ doc <- get_tbls("Documentation_15sep2016.zip")
 names(doc) <- paste0("docx", 1:length(doc))
 list2env(doc, envir = .GlobalEnv)
 rm(docx1, docx2, docx3, docx4, docx5, docx6, docx7, docx8, docx9, docx10, docx11, docx12, docx13, docx14, docx15)
+
 ```
 
 
@@ -127,13 +128,29 @@ rm(docx1, docx2, docx3, docx4, docx5, docx6, docx7, docx8, docx9, docx10, docx11
 ```{r keepNeoplasm, echo=TRUE}
 library(dplyr)
 
+# melanoma, lymphoma, Leukaemia and Neoplasm
 neoplasmCodes <- docx16 %>%
-        rename(Code = code) %>%
         bind_rows(docx17) %>%
-        filter(grepl("neoplasm", str_to_lower(Cause)))
+        filter(
+        grepl("neoplasm", str_to_lower(Cause)) |
+        grepl("melanoma", str_to_lower(Cause)) |
+        grepl("lymphoma", str_to_lower(Cause)) |
+        grepl("leukaemia", str_to_lower(Cause))
+        )
 
+#Dataset with all the mortality data from melanoma, lymphoma, Leukaemia and Neoplasms
 keepNeoplasm <- morticd10_part1 %>%
         filter(Cause %in% neoplasmCodes$Code)
+
+Countries <- keepNeoplasm %>%
+        inner_join(country_codes, by = "Country") %>%
+        select(-Admin1,
+        -SubDiv,
+        -IM_Frmat,
+        -IM_Deaths1,
+        -IM_Deaths2,
+        -IM_Deaths3,
+        -IM_Deaths4)
 
 ```
 
@@ -143,37 +160,12 @@ keepNeoplasm <- morticd10_part1 %>%
 
 ```{r popLong, echo=TRUE}
 
-popLong <- pop %>%
-        rename(
-        `all ages` = Pop1,
-        `0 year` = Pop2,
-        `1 year` = Pop3,
-        `2 years` = Pop4,
-        `3 years` = Pop5,
-        `4 years` = Pop6,
-        `Between 5-9 years` = Pop7,
-        `Between 10-14 years` = Pop8,
-        `Between 15-19 years` = Pop9,
-        `Between 20-24 years` = Pop10,
-        `Between 25-29 years` = Pop11,
-        `Between 30-34 years` = Pop12,
-        `Between 35-39 years` = Pop13,
-        `Between 40-44 years` = Pop14,
-        `Between 45-49 years` = Pop15,
-        `Between 50-54 years` = Pop16,
-        `Between 55-59 years` = Pop17,
-        `Between 60-64 years` = Pop18,
-        `Between 65-69 years` = Pop19,
-        `Between 70-74 years` = Pop20,
-        `Between 75-79 years` = Pop21,
-        `Between 80-84 years` = Pop22,
-        `Between 85-89 years` = Pop23,
-        `Between 90-94 years` = Pop24,
-        `=>95 years` = Pop25,
-        `unspecified` = Pop26,
-        `Live births` = Lb
-        ) %>%
-        gather("Age", "Population", 7:33)
+popLong <- pop   %>%
+        select(-Admin1, -SubDiv, -Lb) %>%
+        gather("Age", "Population", 5:30) %>%
+        mutate(GroupAge  = as.numeric(str_replace(Age,"Pop", ""))) %>%
+        select(-Age)
+
 ```
 
 
@@ -186,6 +178,19 @@ popLong <- pop %>%
     + rate = (100000*deaths)/pop
 
 ```{r mortalityPop, echo=TRUE}
+
+mortalityPop <- keepNeoplasm %>%
+        select(-Admin1,
+        -SubDiv,
+        -IM_Frmat,
+        -IM_Deaths1,
+        -IM_Deaths2,
+        -IM_Deaths3,
+        -IM_Deaths4) %>%
+        gather("Age", "Deaths", 7:32) %>%
+        mutate(GroupAge  = as.numeric(str_replace(Age, "Deaths", "")))  %>%
+        select(-Age) %>%
+        left_join(popLong, by = c("Country"="Country", "Year"="Year", "Sex"="Sex", "Frmat"="Frmat", "GroupAge" = "GroupAge" ))
 
 ```
 
@@ -206,6 +211,23 @@ getWHOdata <- function(country, causes, year, sex){
 
 
 ```
+
+# Comparing results
+```{r compareResults}
+
+m10codes <- morticd10_part1 %>%
+group_by(Cause) %>%
+summarise(n10 = n())
+
+neoCode <- keepNeoplasm %>%
+group_by(Cause) %>%
+summarise(nneo = n()) %>%
+right_join(m10codes, by = "Cause") %>%
+rename(Code = Cause) %>%
+left_join(docx16, by = "Code")
+
+```
+
 
 
 ### Next steps
