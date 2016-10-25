@@ -1,5 +1,5 @@
 ---
-title: "WHO Moratlity Data"
+title: "WHO Mortality Data"
 author: "Saghir Bashir & Joana Pereira"
 date: "9 October 2016"
 output: html_document
@@ -10,8 +10,8 @@ In this document, the steps to *tidy* the [World Health Organisation's (WHO)](ww
 * Data source: <http://www.who.int/healthinfo/mortality_data/en/>
   + It is assumed that data has been downloaded
 * Reading in the WHO mortality data
-* Reading the International Classificaion of Diseases data
-* Keep the **neoplasm** data for ICD10 part 1
+* Reading the International Classification of Diseases data
+* Keep the **neoplasm**, **melanoma**, **lymphoma** and **leukaemia** data for ICD10 part 1
   + Tranform the data into long format for the number of deaths
 * Transform the population data in long format
 * Merge the long population data to the long neoplasm data
@@ -44,7 +44,7 @@ library(tibble)
 
 # Set the directory where you have saved the data.
 # This is not a great solution but it works and is easier for the moment, Later it should change.
-setwd("WHOdata/")
+setwd("OrigData/")
 
 # Select the data files (exclude .zip, .doc, .xls)
 csvWHO <- list.files(path = ".", full.names = FALSE) %>%
@@ -62,7 +62,7 @@ list2env(dataList, envir = .GlobalEnv)
 rm(dataList)
 # Removing the ICD 7, 8, 9 and 10 part 2 data as we will not use them for the moment.
 # Also we do not want to have problems with the memory
-rm(morticd7, morticd8, morticd9, morticd10_part2)
+rm(morticd7, morticd8, morticd9, morticd10_part2, notes, country_codes)
 
 # Some garbage collection to free up the memory (although this is something that is
 # automatically by kernel). In future we may not need this step.
@@ -112,25 +112,25 @@ get_tbls <- function(word_doc) {
 
 
 doc <- get_tbls("Documentation_15sep2016.zip")
-names(doc) <- paste0("docx", 1:length(doc))
+names(doc) <- paste0("docTable", 1:length(doc))
 list2env(doc, envir = .GlobalEnv)
-rm(docx1, docx2, docx3, docx4, docx5, docx6, docx7, docx8, docx9, docx10, docx11, docx12, docx13, docx14, docx15)
+rm(docTable1, docTable2, docTable3, docTable4, docTable5, docTable6, docTable7, docTable8, docTable9, docTable10, docTable11, docTable12, docTable13, docTable14, docTable15, docTable18)
 
 ```
 
 
-### Keep the **neoplasm** data for ICD10 parts 1 
+### Keep the **neoplasm**, **melanoma**, **lymphoma** and **leukaemia** data for ICD10 parts 1 
 
 **To do:** Tranform the data into long format for the number of deaths
 
 **Hints:** Use `gather()`, `filter()`, `str_to_upper()` (or an case insensitive regex to select neoplasm data). 
 
-```{r keepNeoplasm, echo=TRUE}
+```{r nmllData, echo=TRUE}
 library(dplyr)
 
-# melanoma, lymphoma, Leukaemia and Neoplasm
-neoplasmCodes <- docx16 %>%
-        bind_rows(docx17) %>%
+#Get neoplasm, melanoma, lymphoma and leukaemia codes from the table in Documentation_15sep2016.doc
+nmllCodes <- docTable16 %>%
+        bind_rows(docTable17) %>%
         filter(
         grepl("neoplasm", str_to_lower(Cause)) |
         grepl("melanoma", str_to_lower(Cause)) |
@@ -138,19 +138,11 @@ neoplasmCodes <- docx16 %>%
         grepl("leukaemia", str_to_lower(Cause))
         )
 
-#Dataset with all the mortality data from melanoma, lymphoma, Leukaemia and Neoplasms
-keepNeoplasm <- morticd10_part1 %>%
-        filter(Cause %in% neoplasmCodes$Code)
+#Dataset with all the mortality data from neoplasm, melanoma, lymphoma and leukaemia
+nmllData <- morticd10_part1 %>%
+        filter(Cause %in% nmllCodes$Code)
 
-Countries <- keepNeoplasm %>%
-        inner_join(country_codes, by = "Country") %>%
-        select(-Admin1,
-        -SubDiv,
-        -IM_Frmat,
-        -IM_Deaths1,
-        -IM_Deaths2,
-        -IM_Deaths3,
-        -IM_Deaths4)
+rm(docTable16, docTable17, morticd10_part1, csvWHO, doc)
 
 ```
 
@@ -160,16 +152,19 @@ Countries <- keepNeoplasm %>%
 
 ```{r popLong, echo=TRUE}
 
+#The Admin1, SubDiv, Lb and Age columns aren't needed for now
 popLong <- pop   %>%
         select(-Admin1, -SubDiv, -Lb) %>%
         gather("Age", "Population", 5:30) %>%
         mutate(GroupAge  = as.numeric(str_replace(Age,"Pop", ""))) %>%
         select(-Age)
 
+rm(pop)
+
 ```
 
 
-### Merging the population data to the neoplasm mortality data
+### Merging the population data to the neoplasm, melanoma, lymphoma and leukaemia mortality data
 
   * Care has to be taken with respect to the format of the age groups. 
   * Combine the youngest age groups into a new 0-4 years. 
@@ -179,7 +174,8 @@ popLong <- pop   %>%
 
 ```{r mortalityPop, echo=TRUE}
 
-mortalityPop <- keepNeoplasm %>%
+#The Admin1, SubDiv, IM_Frmat, IM_Deaths1, IM_Deaths2, IM_Deaths3, IM_Deaths4 and Age columns aren't needed for now
+mortalityPop <- nmllData %>%
         select(-Admin1,
         -SubDiv,
         -IM_Frmat,
@@ -190,7 +186,8 @@ mortalityPop <- keepNeoplasm %>%
         gather("Age", "Deaths", 7:32) %>%
         mutate(GroupAge  = as.numeric(str_replace(Age, "Deaths", "")))  %>%
         select(-Age) %>%
-        left_join(popLong, by = c("Country"="Country", "Year"="Year", "Sex"="Sex", "Frmat"="Frmat", "GroupAge" = "GroupAge" ))
+        left_join(popLong, by = c("Country"="Country", "Year"="Year", "Sex"="Sex", "Frmat"="Frmat", "GroupAge" = "GroupAge" )) %>%
+        mutate(Rate = (100000 * Deaths) / Population)
 
 ```
 
@@ -212,28 +209,10 @@ getWHOdata <- function(country, causes, year, sex){
 
 ```
 
-# Comparing results
-```{r compareResults}
-
-m10codes <- morticd10_part1 %>%
-group_by(Cause) %>%
-summarise(n10 = n())
-
-neoCode <- keepNeoplasm %>%
-group_by(Cause) %>%
-summarise(nneo = n()) %>%
-right_join(m10codes, by = "Cause") %>%
-rename(Code = Cause) %>%
-left_join(docx16, by = "Code")
-
-```
-
-
-
 ### Next steps
 
 Once the above steps have been completed, the next steps will be defined. They will include:
-  * Sumamry graphs
+  * Summary graphs
   * Summary tables
   
 
