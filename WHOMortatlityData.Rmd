@@ -62,7 +62,7 @@ list2env(dataList, envir = .GlobalEnv)
 rm(dataList)
 # Removing the ICD 7, 8, 9 and 10 part 2 data as we will not use them for the moment.
 # Also we do not want to have problems with the memory
-rm(morticd7, morticd8, morticd9, morticd10_part2, notes, country_codes)
+rm( morticd10_part2, morticd7, morticd8, morticd9, notes, country_codes)
 
 # Some garbage collection to free up the memory (although this is something that is
 # automatically by kernel). In future we may not need this step.
@@ -75,6 +75,9 @@ gc()
 
 ```{r readICDdata, echo=TRUE}
 library(xml2)
+library(docxtractr)
+
+setwd("OrigData/")
 
 get_tbls <- function(word_doc) {
   
@@ -105,11 +108,8 @@ get_tbls <- function(word_doc) {
     dat <- dat[-1,]
     rownames(dat) <- NULL
     dat
-    
   })
-  
 }
-
 
 doc <- get_tbls("Documentation_15sep2016.zip")
 names(doc) <- paste0("docTable", 1:length(doc))
@@ -130,6 +130,7 @@ library(dplyr)
 
 #Get neoplasm, melanoma, lymphoma and leukaemia codes from the table in Documentation_15sep2016.doc
 nmllCodes <- docTable16 %>%
+        rename(Code = code) %>%
         bind_rows(docTable17) %>%
         filter(
         grepl("neoplasm", str_to_lower(Cause)) |
@@ -142,6 +143,7 @@ nmllCodes <- docTable16 %>%
 nmllData <- morticd10_part1 %>%
         filter(Cause %in% nmllCodes$Code)
 
+
 rm(docTable16, docTable17, morticd10_part1, csvWHO, doc)
 
 ```
@@ -151,7 +153,7 @@ rm(docTable16, docTable17, morticd10_part1, csvWHO, doc)
 ### Transform the population data in long format
 
 ```{r popLong, echo=TRUE}
-
+library(tidyr)
 #The Admin1, SubDiv, Lb and Age columns aren't needed for now
 popLong <- pop   %>%
         select(-Admin1, -SubDiv, -Lb) %>%
@@ -206,7 +208,6 @@ getWHOdata <- function(country, causes, year, sex){
 
 }
 
-
 ```
 
 ### Next steps
@@ -215,5 +216,10 @@ Once the above steps have been completed, the next steps will be defined. They w
   * Summary graphs
   * Summary tables
   
+  
+  
+```{r graphs}
 
 
+
+```
