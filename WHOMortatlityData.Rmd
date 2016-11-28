@@ -222,6 +222,6 @@ Once the above steps have been completed, the next steps will be defined. They w
   
   
   
-```{r graphs}
+```{r graphs, echo = TRUE}
 ggplot(na.omit(mortalityPop), aes(x = Year, y = Rate, colour = Country)) +  geom_point(show.legend = F) + facet_wrap(~Cause, shrink = F, nrow = 5) +  coord_cartesian(xlim = c(1998, 2005)) + theme(legend.position = "bottom", axis.text.x = element_text(angle = -30, vjust =1, hjust = 0)) 
 ```
