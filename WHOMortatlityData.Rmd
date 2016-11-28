@@ -177,7 +177,7 @@ rm(pop)
   * Calculate the mortality rate per 100,000 population in a new variable
     + rate = (100000*deaths)/pop
 
-```{r mortalityPop, echo=TRUE}
+```{r mortalityPop, echo=FALSE}
 
 #The Admin1, SubDiv, IM_Frmat, IM_Deaths1, IM_Deaths2, IM_Deaths3, IM_Deaths4 and Age columns aren't needed for now
 mortalityPop <- nmllData %>%
