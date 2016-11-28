@@ -2,7 +2,9 @@
 title: "WHO Mortality Data"
 author: "Saghir Bashir & Joana Pereira"
 date: "9 October 2016"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 In this document, the steps to *tidy* the [World Health Organisation's (WHO)](www.who.int) mortality data for use in R are documented. The following steps are presented.
@@ -44,6 +46,7 @@ library(tibble)
 
 # Set the directory where you have saved the data.
 # This is not a great solution but it works and is easier for the moment, Later it should change.
+
 setwd("OrigData/")
 
 # Select the data files (exclude .zip, .doc, .xls)
@@ -67,17 +70,18 @@ rm( morticd10_part2, morticd7, morticd8, morticd9, notes, country_codes)
 # Some garbage collection to free up the memory (although this is something that is
 # automatically by kernel). In future we may not need this step.
 gc()
+setwd("..")
+
 ```
 
 ## Reading the International Classificaion of Diseases data
 
 **Joana:** Please read in the data form the word document here.
-
 ```{r readICDdata, echo=TRUE}
 library(xml2)
 library(docxtractr)
 
-setwd("OrigData/")
+#setwd("OrigData/")
 
 get_tbls <- function(word_doc) {
   
@@ -110,8 +114,7 @@ get_tbls <- function(word_doc) {
     dat
   })
 }
-
-doc <- get_tbls("Documentation_15sep2016.zip")
+doc <- get_tbls("OrigData/Documentation_15sep2016.zip")
 names(doc) <- paste0("docTable", 1:length(doc))
 list2env(doc, envir = .GlobalEnv)
 rm(docTable1, docTable2, docTable3, docTable4, docTable5, docTable6, docTable7, docTable8, docTable9, docTable10, docTable11, docTable12, docTable13, docTable14, docTable15, docTable18)
@@ -189,7 +192,8 @@ mortalityPop <- nmllData %>%
         mutate(GroupAge  = as.numeric(str_replace(Age, "Deaths", "")))  %>%
         select(-Age) %>%
         left_join(popLong, by = c("Country"="Country", "Year"="Year", "Sex"="Sex", "Frmat"="Frmat", "GroupAge" = "GroupAge" )) %>%
-        mutate(Rate = (100000 * Deaths) / Population)
+        mutate(Rate = (100000 * Deaths) / Population) %>%
+        filter( GroupAge != 1 )
 
 ```
 
@@ -219,7 +223,5 @@ Once the above steps have been completed, the next steps will be defined. They w
   
   
 ```{r graphs}
-
-
-
+ggplot(na.omit(mortalityPop), aes(x = Year, y = Rate, colour = Country)) +  geom_point(show.legend = F) + facet_wrap(~Cause, shrink = F, nrow = 5) +  coord_cartesian(xlim = c(1998, 2005)) + theme(legend.position = "bottom", axis.text.x = element_text(angle = -30, vjust =1, hjust = 0)) 
 ```
